@@ -91,10 +91,20 @@ func main() {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			c.ID = len(categories) + 1
+
+			// Generate ID based on current max ID to avoid duplicates after deletions
+			maxID := 0
+			for _, cat := range categories {
+				if cat.ID > maxID {
+					maxID = cat.ID
+				}
+			}
+			c.ID = maxID + 1
+
 			categories = append(categories, c)
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
-			fmt.Fprint(w, "Category created successfully")
+			json.NewEncoder(w).Encode(c)
 		}
 	})
 
@@ -156,10 +166,35 @@ func main() {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			p.ID = len(produk) + 1
+
+			// Validate CategoryID
+			categoryExists := false
+			for _, c := range categories {
+				if c.ID == p.CategoryID {
+					categoryExists = true
+					break
+				}
+			}
+
+			if !categoryExists {
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprint(w, "Invalid CategoryID")
+				return
+			}
+
+			// Generate ID
+			maxID := 0
+			for _, prod := range produk {
+				if prod.ID > maxID {
+					maxID = prod.ID
+				}
+			}
+			p.ID = maxID + 1
+
 			produk = append(produk, p)
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
-			fmt.Fprint(w, "Product created successfully")
+			json.NewEncoder(w).Encode(p)
 		}
 	})
 
