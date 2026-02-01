@@ -1,208 +1,72 @@
 package main
 
 import (
-	"encoding/json"
+	"belajar-api/database"
+	"belajar-api/handler"
+	"belajar-api/repository"
+	"belajar-api/service"
 	"fmt"
+	"log"
 	"net/http"
-	"strconv"
+	"os"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
-type Category struct {
-	ID   int    `json:"id"`
-	Nama string `json:"nama"`
-}
-
-type Produk struct {
-	ID         int    `json:"id"`
-	Nama       string `json:"nama"`
-	Harga      int    `json:"harga"`
-	CategoryID int    `json:"category_id"`
-}
-
-var categories = []Category{
-	{ID: 1, Nama: "Minuman"},
-	{ID: 2, Nama: "Makanan"},
-}
-
-var produk = []Produk{
-	{ID: 1, Nama: "Kopi Tubruk", Harga: 15000, CategoryID: 1},
-	{ID: 2, Nama: "Kopi Susu", Harga: 20000, CategoryID: 1},
-	{ID: 3, Nama: "Nasi Goreng", Harga: 25000, CategoryID: 2},
+type Config struct {
+	Port   string `mapstructure:"PORT"`
+	DBConn string `mapstructure:"DB_CONN"`
 }
 
 func main() {
+	// Viper Config Setup
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
-	// API Category By ID (GET, PUT, DELETE)
-	http.HandleFunc("/api/categories/", func(w http.ResponseWriter, r *http.Request) {
-		idStr := strings.TrimPrefix(r.URL.Path, "/api/categories/")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
+	if _, err := os.Stat(".env"); err == nil {
+		viper.SetConfigFile(".env")
+		_ = viper.ReadInConfig()
+	}
 
-		if r.Method == "GET" {
-			for _, c := range categories {
-				if c.ID == id {
-					w.Header().Set("Content-Type", "application/json")
-					json.NewEncoder(w).Encode(c)
-					return
-				}
-			}
-			w.WriteHeader(http.StatusNotFound)
-		} else if r.Method == "PUT" {
-			var updatedCat Category
-			if err := json.NewDecoder(r.Body).Decode(&updatedCat); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			for i, c := range categories {
-				if c.ID == id {
-					updatedCat.ID = id
-					categories[i] = updatedCat
-					w.WriteHeader(http.StatusOK)
-					fmt.Fprint(w, "Category updated successfully")
-					return
-				}
-			}
-			w.WriteHeader(http.StatusNotFound)
-		} else if r.Method == "DELETE" {
-			for i, c := range categories {
-				if c.ID == id {
-					categories = append(categories[:i], categories[i+1:]...)
-					w.WriteHeader(http.StatusOK)
-					fmt.Fprint(w, "Category deleted successfully")
-					return
-				}
-			}
-			w.WriteHeader(http.StatusNotFound)
-		}
-	})
+	config := Config{
+		Port:   viper.GetString("PORT"),
+		DBConn: viper.GetString("DB_CONN"),
+	}
 
-	// API Categories (GET, POST)
-	http.HandleFunc("/api/categories", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(categories)
-		} else if r.Method == "POST" {
-			var c Category
-			if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
+	// Setup Database
+	db, err := database.InitDB(config.DBConn)
+	if err != nil {
+		log.Fatal("Failed to initialize database:", err)
+	}
+	defer db.Close()
 
-			// Generate ID based on current max ID to avoid duplicates after deletions
-			maxID := 0
-			for _, cat := range categories {
-				if cat.ID > maxID {
-					maxID = cat.ID
-				}
-			}
-			c.ID = maxID + 1
+	// 1. Setup Repository (Data Access Layer)
+	categoryRepo := repository.NewCategoryRepository()
+	productRepo := repository.NewProductRepository()
 
-			categories = append(categories, c)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(c)
-		}
-	})
+	// 2. Setup Service (Business Logic Layer)
+	categoryService := service.NewCategoryService(categoryRepo)
+	productService := service.NewProductService(productRepo, categoryRepo)
 
-	// API Produk By ID (GET, PUT, DELETE)
-	http.HandleFunc("/api/produk/", func(w http.ResponseWriter, r *http.Request) {
-		idStr := strings.TrimPrefix(r.URL.Path, "/api/produk/")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
+	// 3. Setup Handler (Presentation Layer)
+	categoryHandler := handler.NewCategoryHandler(categoryService)
+	productHandler := handler.NewProductHandler(productService)
 
-		if r.Method == "GET" {
-			for _, p := range produk {
-				if p.ID == id {
-					w.Header().Set("Content-Type", "application/json")
-					json.NewEncoder(w).Encode(p)
-					return
-				}
-			}
-			w.WriteHeader(http.StatusNotFound)
-		} else if r.Method == "PUT" {
-			var updatedProd Produk
-			if err := json.NewDecoder(r.Body).Decode(&updatedProd); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			for i, p := range produk {
-				if p.ID == id {
-					updatedProd.ID = id
-					produk[i] = updatedProd
-					w.WriteHeader(http.StatusOK)
-					fmt.Fprint(w, "Product updated successfully")
-					return
-				}
-			}
-			w.WriteHeader(http.StatusNotFound)
-		} else if r.Method == "DELETE" {
-			for i, p := range produk {
-				if p.ID == id {
-					produk = append(produk[:i], produk[i+1:]...)
-					w.WriteHeader(http.StatusOK)
-					fmt.Fprint(w, "Product deleted successfully")
-					return
-				}
-			}
-			w.WriteHeader(http.StatusNotFound)
-		}
-	})
+	// 4. Setup Router
+	http.HandleFunc("/api/categories", categoryHandler.HandleCategories)
+	http.HandleFunc("/api/categories/", categoryHandler.HandleCategoryByID)
 
-	// API Produk (GET, POST)
-	http.HandleFunc("/api/produk", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(produk)
-		} else if r.Method == "POST" {
-			var p Produk
-			if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
+	http.HandleFunc("/api/produk", productHandler.HandleProducts)
+	http.HandleFunc("/api/produk/", productHandler.HandleProductByID)
 
-			// Validate CategoryID
-			categoryExists := false
-			for _, c := range categories {
-				if c.ID == p.CategoryID {
-					categoryExists = true
-					break
-				}
-			}
-
-			if !categoryExists {
-				w.WriteHeader(http.StatusBadRequest)
-				fmt.Fprint(w, "Invalid CategoryID")
-				return
-			}
-
-			// Generate ID
-			maxID := 0
-			for _, prod := range produk {
-				if prod.ID > maxID {
-					maxID = prod.ID
-				}
-			}
-			p.ID = maxID + 1
-
-			produk = append(produk, p)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(p)
-		}
-	})
-
-	fmt.Println("Server sedang berjalan di http://localhost:8080")
+	// Server Run with Config
+	addr := "0.0.0.0:" + config.Port
+	fmt.Println("Server running di", addr)
 	fmt.Println("Tekan Ctrl+C untuk menghentikan server")
 
-	err := http.ListenAndServe(":8080", nil)
+	err = http.ListenAndServe(addr, nil)
 	if err != nil {
-		fmt.Println("Gagal menjalankan server:", err)
+		fmt.Println("gagal running server", err)
 	}
 }
