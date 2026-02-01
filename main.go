@@ -42,8 +42,8 @@ func main() {
 	defer db.Close()
 
 	// 1. Setup Repository (Data Access Layer)
-	categoryRepo := repository.NewCategoryRepository()
-	productRepo := repository.NewProductRepository()
+	categoryRepo := repository.NewCategoryRepository(db)
+	productRepo := repository.NewProductRepository(db)
 
 	// 2. Setup Service (Business Logic Layer)
 	categoryService := service.NewCategoryService(categoryRepo)

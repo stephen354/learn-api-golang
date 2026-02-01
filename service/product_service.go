@@ -3,14 +3,13 @@ package service
 import (
 	"belajar-api/model"
 	"belajar-api/repository"
-	"errors"
 )
 
 type ProductService interface {
-	GetAll() []model.ProdukResponse
-	GetById(id int) (model.ProdukResponse, error)
-	Create(product model.Produk) (model.Produk, error)
-	Update(id int, product model.Produk) error
+	GetAll() []model.ProductResponse
+	GetById(id int) (model.ProductResponse, error)
+	Create(product model.Product) model.Product
+	Update(id int, product model.Product) error
 	Delete(id int) error
 }
 
@@ -19,23 +18,23 @@ type productService struct {
 	categoryRepo repository.CategoryRepository
 }
 
-func NewProductService(pRepo repository.ProductRepository, cRepo repository.CategoryRepository) ProductService {
+func NewProductService(productRepo repository.ProductRepository, categoryRepo repository.CategoryRepository) ProductService {
 	return &productService{
-		productRepo:  pRepo,
-		categoryRepo: cRepo,
+		productRepo:  productRepo,
+		categoryRepo: categoryRepo,
 	}
 }
 
-func (s *productService) GetAll() []model.ProdukResponse {
+func (s *productService) GetAll() []model.ProductResponse {
 	products := s.productRepo.FindAll()
-	var responses []model.ProdukResponse
+	var responses []model.ProductResponse
 
 	for _, p := range products {
 		category, _ := s.categoryRepo.FindById(p.CategoryID)
-		responses = append(responses, model.ProdukResponse{
+		responses = append(responses, model.ProductResponse{
 			ID:         p.ID,
-			Nama:       p.Nama,
-			Harga:      p.Harga,
+			Name:       p.Name,
+			Price:      p.Price,
 			CategoryID: p.CategoryID,
 			Category:   category,
 		})
@@ -43,35 +42,27 @@ func (s *productService) GetAll() []model.ProdukResponse {
 	return responses
 }
 
-func (s *productService) GetById(id int) (model.ProdukResponse, error) {
+func (s *productService) GetById(id int) (model.ProductResponse, error) {
 	product, err := s.productRepo.FindById(id)
 	if err != nil {
-		return model.ProdukResponse{}, err
+		return model.ProductResponse{}, err
 	}
 
 	category, _ := s.categoryRepo.FindById(product.CategoryID)
-	return model.ProdukResponse{
+	return model.ProductResponse{
 		ID:         product.ID,
-		Nama:       product.Nama,
-		Harga:      product.Harga,
+		Name:       product.Name,
+		Price:      product.Price,
 		CategoryID: product.CategoryID,
 		Category:   category,
 	}, nil
 }
 
-func (s *productService) Create(product model.Produk) (model.Produk, error) {
-	if !s.categoryRepo.Exists(product.CategoryID) {
-		return model.Produk{}, errors.New("invalid CategoryID")
-	}
-	return s.productRepo.Save(product), nil
+func (s *productService) Create(product model.Product) model.Product {
+	return s.productRepo.Save(product)
 }
 
-func (s *productService) Update(id int, product model.Produk) error {
-	if product.CategoryID != 0 {
-		if !s.categoryRepo.Exists(product.CategoryID) {
-			return errors.New("invalid CategoryID")
-		}
-	}
+func (s *productService) Update(id int, product model.Product) error {
 	return s.productRepo.Update(id, product)
 }
 

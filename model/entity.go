@@ -2,20 +2,20 @@ package model
 
 type Category struct {
 	ID   int    `json:"id"`
-	Nama string `json:"nama"`
+	Name string `json:"name"`
 }
 
-type Produk struct {
+type Product struct {
 	ID         int    `json:"id"`
-	Nama       string `json:"nama"`
-	Harga      int    `json:"harga"`
+	Name       string `json:"name"`
+	Price      int    `json:"price"`
 	CategoryID int    `json:"category_id"`
 }
 
-type ProdukResponse struct {
+type ProductResponse struct {
 	ID         int      `json:"id"`
-	Nama       string   `json:"nama"`
-	Harga      int      `json:"harga"`
+	Name       string   `json:"name"`
+	Price      int      `json:"price"`
 	CategoryID int      `json:"category_id"`
 	Category   Category `json:"category"`
 }

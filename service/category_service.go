@@ -14,29 +14,29 @@ type CategoryService interface {
 }
 
 type categoryService struct {
-	repo repository.CategoryRepository
+	categoryRepo repository.CategoryRepository
 }
 
-func NewCategoryService(repo repository.CategoryRepository) CategoryService {
-	return &categoryService{repo: repo}
+func NewCategoryService(categoryRepo repository.CategoryRepository) CategoryService {
+	return &categoryService{categoryRepo: categoryRepo}
 }
 
 func (s *categoryService) GetAll() []model.Category {
-	return s.repo.FindAll()
+	return s.categoryRepo.FindAll()
 }
 
 func (s *categoryService) GetById(id int) (model.Category, error) {
-	return s.repo.FindById(id)
+	return s.categoryRepo.FindById(id)
 }
 
 func (s *categoryService) Create(category model.Category) model.Category {
-	return s.repo.Save(category)
+	return s.categoryRepo.Save(category)
 }
 
 func (s *categoryService) Update(id int, category model.Category) error {
-	return s.repo.Update(id, category)
+	return s.categoryRepo.Update(id, category)
 }
 
 func (s *categoryService) Delete(id int) error {
-	return s.repo.Delete(id)
+	return s.categoryRepo.Delete(id)
 }
