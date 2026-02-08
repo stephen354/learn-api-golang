@@ -7,7 +7,7 @@ import (
 )
 
 type ProductRepository interface {
-	FindAll() []model.Product
+	FindAll(nameFilter string) []model.Product
 	FindById(id int) (model.Product, error)
 	Save(product model.Product) model.Product
 	Update(id int, product model.Product) error
@@ -22,8 +22,18 @@ func NewProductRepository(db *sql.DB) ProductRepository {
 	return &productRepository{db: db}
 }
 
-func (r *productRepository) FindAll() []model.Product {
-	rows, err := r.db.Query("SELECT id, name, price, category_id FROM products ORDER BY id ASC")
+func (r *productRepository) FindAll(nameFilter string) []model.Product {
+	query := "SELECT id, name, price, stock, category_id FROM products"
+	args := []interface{}{}
+
+	if nameFilter != "" {
+		query += " WHERE name ILIKE $1"
+		args = append(args, "%"+nameFilter+"%")
+	}
+
+	query += " ORDER BY id ASC"
+
+	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return []model.Product{}
 	}
@@ -32,7 +42,7 @@ func (r *productRepository) FindAll() []model.Product {
 	var products []model.Product
 	for rows.Next() {
 		var p model.Product
-		rows.Scan(&p.ID, &p.Name, &p.Price, &p.CategoryID)
+		rows.Scan(&p.ID, &p.Name, &p.Price, &p.Stock, &p.CategoryID)
 		products = append(products, p)
 	}
 	return products
@@ -40,7 +50,7 @@ func (r *productRepository) FindAll() []model.Product {
 
 func (r *productRepository) FindById(id int) (model.Product, error) {
 	var p model.Product
-	err := r.db.QueryRow("SELECT id, name, price, category_id FROM products WHERE id = $1", id).Scan(&p.ID, &p.Name, &p.Price, &p.CategoryID)
+	err := r.db.QueryRow("SELECT id, name, price, stock, category_id FROM products WHERE id = $1", id).Scan(&p.ID, &p.Name, &p.Price, &p.Stock, &p.CategoryID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return model.Product{}, errors.New("product not found")
@@ -51,7 +61,7 @@ func (r *productRepository) FindById(id int) (model.Product, error) {
 }
 
 func (r *productRepository) Save(product model.Product) model.Product {
-	err := r.db.QueryRow("INSERT INTO products (name, price, category_id) VALUES ($1, $2, $3) RETURNING id", product.Name, product.Price, product.CategoryID).Scan(&product.ID)
+	err := r.db.QueryRow("INSERT INTO products (name, price, stock, category_id) VALUES ($1, $2, $3, $4) RETURNING id", product.Name, product.Price, product.Stock, product.CategoryID).Scan(&product.ID)
 	if err != nil {
 		return model.Product{}
 	}
@@ -59,7 +69,7 @@ func (r *productRepository) Save(product model.Product) model.Product {
 }
 
 func (r *productRepository) Update(id int, product model.Product) error {
-	res, err := r.db.Exec("UPDATE products SET name = $1, price = $2, category_id = $3 WHERE id = $4", product.Name, product.Price, product.CategoryID, id)
+	res, err := r.db.Exec("UPDATE products SET name = $1, price = $2, stock = $3, category_id = $4 WHERE id = $5", product.Name, product.Price, product.Stock, product.CategoryID, id)
 	if err != nil {
 		return err
 	}

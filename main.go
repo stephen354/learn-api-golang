@@ -44,14 +44,20 @@ func main() {
 	// 1. Setup Repository (Data Access Layer)
 	categoryRepo := repository.NewCategoryRepository(db)
 	productRepo := repository.NewProductRepository(db)
+	transactionRepo := repository.NewTransactionRepository(db)
+	reportRepo := repository.NewReportRepository(db)
 
 	// 2. Setup Service (Business Logic Layer)
 	categoryService := service.NewCategoryService(categoryRepo)
 	productService := service.NewProductService(productRepo, categoryRepo)
+	transactionService := service.NewTransactionService(transactionRepo)
+	reportService := service.NewReportService(reportRepo)
 
 	// 3. Setup Handler (Presentation Layer)
 	categoryHandler := handler.NewCategoryHandler(categoryService)
 	productHandler := handler.NewProductHandler(productService)
+	transactionHandler := handler.NewTransactionHandler(transactionService)
+	reportHandler := handler.NewReportHandler(reportService)
 
 	// 4. Setup Router
 	http.HandleFunc("/api/categories", categoryHandler.HandleCategories)
@@ -59,6 +65,10 @@ func main() {
 
 	http.HandleFunc("/api/produk", productHandler.HandleProducts)
 	http.HandleFunc("/api/produk/", productHandler.HandleProductByID)
+
+	http.HandleFunc("/api/checkout", transactionHandler.HandleCheckout)
+	http.HandleFunc("/api/report/hari-ini", reportHandler.HandleReport)
+	http.HandleFunc("/api/report", reportHandler.HandleReport)
 
 	// Server Run with Config
 	addr := "0.0.0.0:" + config.Port

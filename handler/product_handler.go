@@ -25,7 +25,8 @@ func NewProductHandler(productService service.ProductService) ProductHandler {
 func (h *productHandler) HandleProducts(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		products := h.productService.GetAll()
+		name := r.URL.Query().Get("name")
+		products := h.productService.GetAll(name)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(products)
 	case http.MethodPost:
